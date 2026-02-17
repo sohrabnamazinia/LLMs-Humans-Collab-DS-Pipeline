@@ -1,0 +1,13 @@
+# Data files
+data/
+venv
+
+# Python cache
+__pycache__/
+*.py[cod]
+*$py.class
+
+points.txt
+
+data_cleaning/outputs/
+data_cleaning/outputs_csv/
