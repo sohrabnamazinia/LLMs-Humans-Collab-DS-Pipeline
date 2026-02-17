@@ -43,10 +43,12 @@ class LLMHumanDataCleaner(DataCleaner):
         model_name: str = "gpt-4o-mini",
         chunk_size: int = DEFAULT_CHUNK_SIZE,
         few_shot_examples: Optional[List[Tuple[pd.DataFrame, pd.DataFrame]]] = None,
+        run_label: str = "LLM+human",
     ):
         self.model_name = model_name
         self.chunk_size = chunk_size
         self.few_shot_examples = few_shot_examples or []
+        self.run_label = run_label
         self.llm = ChatOpenAI(model=model_name, temperature=0)
         self.total_input_tokens = 0
 
@@ -63,13 +65,13 @@ class LLMHumanDataCleaner(DataCleaner):
         self.total_input_tokens = 0
         cleaned_chunks = []
         total_chunks = (len(df) + self.chunk_size - 1) // self.chunk_size
-        print(f"  [LLM+human] Processing {total_chunks} chunk(s)...")
+        print(f"  [{self.run_label}] Processing {total_chunks} chunk(s)...")
         for i, start in enumerate(range(0, len(df), self.chunk_size)):
-            print(f"  [LLM+human] Chunk {i + 1}/{total_chunks}: calling API...")
+            print(f"  [{self.run_label}] Chunk {i + 1}/{total_chunks}: calling API...")
             chunk = df.iloc[start : start + self.chunk_size]
             cleaned = self._clean_chunk(chunk)
             cleaned_chunks.append(cleaned)
-            print(f"  [LLM+human] Chunk {i + 1}/{total_chunks} done.")
+            print(f"  [{self.run_label}] Chunk {i + 1}/{total_chunks} done.")
         return pd.concat(cleaned_chunks, ignore_index=True)
 
     def _call_llm(self, data_csv: str, examples_block: str) -> str:

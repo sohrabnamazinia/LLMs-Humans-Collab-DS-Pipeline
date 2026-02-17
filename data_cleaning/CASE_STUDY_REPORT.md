@@ -1,82 +1,73 @@
-# Data Cleaning Case Studies — Report
+# Data Cleaning Case Study — Report
 
-## 1. Initial data
-
-- **Source:** UCI Adult (income prediction). Subset of **200 rows** used for cleaning experiments.
-- **Target columns for errors:** `workclass`, `occupation`, `native-country` (categorical).
-- **Ground truth:** Clean version saved as `adult_cleaning_input_correct.csv`; noisy version as `adult_cleaning_input_noisy.csv`.
+First case study: **data cleaning** in the pipeline. We compare Raw, Rule-based, LLM only, LLM+human (few-shot), and LLM+LLM (reviewer) on cleaning quality, cost, uncertainty (HITL), and downstream income prediction.
 
 ---
 
-## 2. Types of noise added
+## 1. Data & noise
 
-| # | Noise type | Description |
-|---|------------|-------------|
-| 1 | Missing values | 5–10% of rows; sentinels in error cols (?/N/A/missing/??/Unknown/null/Invalid/—/???) |
-| 2 | Categorical typos | Spacing, case, underscores (e.g. Private→private , United-States→united-states) |
-| 3 | Duplicate rows | ~5% rows overwritten as copies of another row |
-| 4 | Invalid categories | UnknownType, Invalid, TBD, ???, N/A, Misc, Other/Unknown, ?? in error cols |
-| 5 | Numeric noise | Age ± small delta; unrealistic hours (200, 168, 150) |
-| 6 | Workclass missing (context) | workclass = ? where occupation suggests the correct value |
-| 7 | Semantic swap | workclass Private → State-gov in clearly private-sector rows |
-| 8 | Vague rows | 2–3 of workclass/occupation/native-country set to Unclear/?/Ambiguous/Unknown |
-| 9 | Hard sentinels | Not specified, Data not available (no few-shot coverage) |
-| 10 | Fully corrupted HITL rows | All three error columns set to Unclear / Data not available / Not specified |
+- **Source:** UCI Adult (income prediction). **200 rows**; clean copy = ground truth, noisy copy = input for cleaning.
+- **Error columns:** `workclass`, `occupation`, `native-country` (categorical). Quality = % of error cells fixed.
+
+**Noise types (10):** Missing/sentinels (?/N/A/??/Unknown/…), categorical typos, duplicates, invalid categories (UnknownType, TBD, Misc, …), numeric noise (age, hours), workclass missing where context suggests fill, semantic swap (Private→State-gov), vague rows (Unclear/? in 2–3 key cols), hard sentinels (Not specified, Data not available), fully corrupted HITL rows (all three key cols vague).
 
 ---
 
-## 3. Experiments
+## 2. Cleaning quality & cost (100 rows)
 
-### 3.1 Cleaning quality & cost
+| Method | Quality | Remaining errors | Cost | Time (s) |
+|--------|---------|------------------|------|----------|
+| Raw | 0% | 48 | — | 0.00 |
+| Rule-based | ~44% | 27 | — | ~0.02 |
+| LLM only | ~96% | 2 | tokens × α | ~80 |
+| LLM + human | 100% | 0 | tokens × α + 600 × β | ~85 |
+| LLM + LLM (reviewer) | ~94% | few | (first + second LLM) tokens × α | ~270 |
 
-- **Setup:** **100 rows** from noisy + correct CSVs; **multiple runs, results averaged**.
-- **Methods:** Raw (no cleaning), Rule-based, LLM only, LLM + human (few-shot). Same error columns and quality metric (% of error cells fixed).
-
-**Results (representative run):**
-
-| Method | Quality (% errors fixed) | Remaining errors | Cost | Time (s) |
-|--------|--------------------------|------------------|------|----------|
-| Raw | 0.00% | 48 | — | 0.00 |
-| Rule-based | 43.75% | 27 | — | 0.02 |
-| LLM only | 95.83% | 2 | 5192 × α | 77.81 |
-| LLM + human | 100.00% | 0 | 6915 × α + 600 × β | 83.45 |
-
-- **Takeaways:** Quality order Raw &lt; Rule-based &lt; LLM only &lt; LLM+human. LLM+human reaches 100% on this run; cost is token-based (α) and, when there are below-threshold rows, + human time (β). Example: 2 rows with confidence &lt; 90 → 2 × 300 s = 600 × β. Rule-based fixes ~44% of errors; LLM fixes almost all; LLM+human (with few-shot) fixes the rest.
+- **LLM+LLM:** First LLM cleans; second LLM reviews each row (OK or corrected). Confidence = first LLM’s only; no human. Report logs reviewer modifications.
+- **Takeaway:** Raw < Rule-based < LLM only ≤ LLM+LLM < LLM+human. LLM+human reaches 100%; cost adds human time (β) for rows with confidence < 90.
 
 ---
 
-### 3.2 Uncertainty (confidence & HITL)
+## 3. Uncertainty (confidence & HITL)
 
-- **Setup:** **10 rows**; **LLM+human only**; batch size 1. Noise is **more complicated**: injected “Unclear” in 4 rows (all three error columns) plus existing noise in the 10-row slice so that some rows get **confidence &lt; 90** (HITL).
-- **Metrics:** Per-row correct vs ground truth; accuracy **above** vs **below** confidence threshold (90).
-
-**Results (representative run):**
-
-| Split | Rows | LLM accuracy (cleaned vs ground truth) |
-|-------|------|----------------------------------------|
-| Confidence ≥ 90 | 2 | 100.00% (2/2 correct) |
-| Confidence &lt; 90 (HITL) | 8 | 12.50% (1/8 correct) |
-
-- **Takeaways:** When the model is confident it is correct; when it sets confidence &lt; 90 it is usually wrong (1/8 correct). Sending low-confidence rows to human review (HITL) is therefore well-aligned with actual need.
+- **Setup:** 10 rows, LLM+human only, batch size 1; some rows with “Unclear” in key columns so that confidence < 90.
+- **Result:** Above-threshold rows: 100% correct. Below-threshold: 12.5% correct (1/8). Low confidence aligns with actual need for human review.
 
 ---
 
-## 4. Worked examples (from quality experiment)
+## 4. Downstream ML (income prediction)
 
-**Rule-based over Raw**  
-- **Row 6:** Raw left `workclass = ?`, `occupation = ?`. Rule-based filled them (e.g. mode / default), reducing remaining errors.
+- **Task:** Predict binary income (>50K vs ≤50K) from cleaned data. Same train/test split (80/20, seed 42) for all methods; **Decision Tree** (max_depth=10).
+- **Metrics:** Accuracy and F1 (binary, positive class = >50K).
 
-**LLM over Rule-based**  
-- **Row 7:** Rule-based left `native-country = Invalid`. LLM inferred a valid value (e.g. United-States) from context, fixing a cell rule-based could not.
+**Results (100 rows, representative):**
 
-**LLM+human over LLM only**  
-- **Rows 8 and 23:** LLM only left `occupation = Unknown` (row 8) and `occupation = Data not available` (row 23). LLM+human (few-shot) replaced them with valid categories; remaining errors for LLM+human = 0.
+| Method | Accuracy | F1 |
+|--------|----------|-----|
+| Raw (no cleaning) | 0.80 | 0.58 |
+| Rule-based | 0.84 | 0.64 |
+| LLM only | 0.85 | 0.67 |
+| **LLM + human (few-shot)** | **0.90** | **0.80** |
+| LLM + LLM (reviewer) | 0.84 | 0.65 |
+
+- **Why rule-based is close to LLM/LLM+LLM here:** It fixes many issues in the key categorical (and some numeric) columns that the tree uses. Remaining rule-based errors may fall in rows or features that do not change the tree’s splits much on this small set.
+- **Why Raw is lower:** More dirty values in key columns hurt feature quality and hence accuracy/F1.
+- **Larger data:** With more rows, gaps between methods would likely widen; our run uses 100 rows and 20 test samples, so variance is high.
+- **Model choice:** Results depend on the downstream model; we used a Decision Tree for simplicity and speed.
 
 ---
 
-## 5. File references
+## 5. Worked examples (cleaning)
 
-- **Quality/cost report (example):** `data_cleaning/outputs/data_20260216_132317.txt`
-- **Uncertainty report (example):** `data_cleaning/outputs/data_uncertainty_20260216_133918.txt`
+- **Rule-based over Raw:** Row 6 — Raw left workclass/occupation = ?; rule-based filled (e.g. mode).
+- **LLM over Rule-based:** Row 7 — Rule-based left native-country = Invalid; LLM inferred United-States.
+- **LLM+human over LLM only:** Rows 8, 23 — LLM left occupation = Unknown / Data not available; LLM+human replaced with valid categories.
+
+---
+
+## 6. Files & how to run
+
 - **Noise generation:** `preprocessing/build_cleaning_input.py`
-- **Runners:** `data_cleaning/run_case_study.py`, `data_cleaning/run_case_study_uncertainty.py`
+- **Cleaning (quality, cost, report):** `data_cleaning/run_case_study.py` → outputs in `data_cleaning/outputs/`, CSVs in `data_cleaning/outputs_csv/run_<timestamp>/`
+- **Uncertainty (HITL):** `data_cleaning/run_case_study_uncertainty.py` → report in `data_cleaning/outputs/data_uncertainty_<timestamp>.txt`
+- **Downstream ML:** `data_cleaning/run_case_study_downstream_ml.py` — optionally runs the case study (n=10) then trains on the new run folder; or pass a run folder path to use existing CSVs.

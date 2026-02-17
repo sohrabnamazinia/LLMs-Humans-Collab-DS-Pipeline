@@ -28,6 +28,7 @@ from data_cleaning.evaluation.cleaning_quality import compute_cleaning_quality
 from data_cleaning.methods import (
     LLMDataCleaner,
     LLMHumanDataCleaner,
+    LLMLLMDataCleaner,
     RawDataCleaner,
     RuleBasedDataCleaner,
 )
@@ -200,6 +201,26 @@ def _write_report(
             lines.append(f"    Accuracy on HITL rows (LLM output vs ground truth): {acc:.2%}")
             # Second: assuming expert correction, those rows are counted as correct
             lines.append(f"    Accuracy on HITL rows (assuming expert correction): 100.00% (HITL rows taken as correct)")
+
+    for r in method_results:
+        mods = r.get("reviewer_modifications") or []
+        if mods:
+            lines.extend(["", "REVIEWER MODIFICATIONS (LLM+LLM only)", "-" * 40])
+            lines.append(f"  {len(mods)} row(s) modified by second LLM:")
+            for m in mods[:50]:
+                row_ix = m.get("row_ix", "?")
+                first_llm = m.get("first_llm") or {}
+                reviewer_cleaned = m.get("reviewer_cleaned") or {}
+                diffs = []
+                for k in (EXPLANATION_COL, "workclass", "occupation", "native-country"):
+                    if k in first_llm and k in reviewer_cleaned:
+                        a, b = str(first_llm.get(k, "")), str(reviewer_cleaned.get(k, ""))
+                        if a != b:
+                            diffs.append(f"{k}: {a!r} -> {b!r}")
+                lines.append(f"    row {row_ix}: " + ("; ".join(diffs) if diffs else "(columns changed)"))
+            if len(mods) > 50:
+                lines.append(f"    ... and {len(mods) - 50} more")
+            break
 
     lines.extend(["", "7. COST", "-" * 40])
     for r in method_results:
@@ -431,7 +452,7 @@ def main(
     correct_path: Optional[str] = None,
     n: Optional[int] = 100,
     run_build: bool = True,
-) -> None:
+) -> Optional[Path]:
     # Regenerate noisy + correct datasets (optional, for a quick check use n=100)
     if run_build:
         from preprocessing.build_cleaning_input import main as build_dataset_main
@@ -449,6 +470,14 @@ def main(
         (
             "LLM + human (few-shot)",
             LLMHumanDataCleaner(
+                model_name="gpt-4o-mini",
+                chunk_size=100,
+                few_shot_examples=_make_few_shot_examples(),
+            ),
+        ),
+        (
+            "LLM + LLM (reviewer)",
+            LLMLLMDataCleaner(
                 model_name="gpt-4o-mini",
                 chunk_size=100,
                 few_shot_examples=_make_few_shot_examples(),
@@ -496,6 +525,7 @@ def main(
         "Rule-based": "rule_based_output.csv",
         "LLM only": "llm_only_output.csv",
         "LLM + human (few-shot)": "llm_human_output.csv",
+        "LLM + LLM (reviewer)": "llm_llm_output.csv",
     }
 
     error_values = _error_values_for_quality()
@@ -571,6 +601,9 @@ def main(
             input_tokens = cleaner.total_input_tokens
             human_seconds = HUMAN_SECONDS_PER_HITL_ROW * hitl_cost
             cost_str = f"{input_tokens} × α + {human_seconds} × β"
+        elif name == "LLM + LLM (reviewer)" and hasattr(cleaner, "total_input_tokens"):
+            input_tokens = cleaner.total_input_tokens
+            cost_str = f"{input_tokens} × α"
 
         csv_name = _method_to_csv_name.get(name)
         if csv_name:
@@ -578,6 +611,7 @@ def main(
             cleaned_full.to_csv(out_path, index=False)
             print(f"  Saved {out_path.name}")
 
+        reviewer_mods = getattr(cleaner, "reviewer_modifications", None) or []
         method_results.append({
             "name": name,
             "quality": quality,
@@ -589,6 +623,7 @@ def main(
             "input_tokens": input_tokens,
             "cost_str": cost_str,
             "time_seconds": time_seconds,
+            "reviewer_modifications": reviewer_mods if reviewer_mods else None,
         })
         print(f"  {name}: {quality:.2%}")
 
@@ -599,6 +634,7 @@ def main(
     print(f"Output CSVs written to {outputs_csv_run_dir}")
 
     print("Done.")
+    return outputs_csv_run_dir
 
 
 if __name__ == "__main__":

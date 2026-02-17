@@ -9,5 +9,6 @@ __pycache__/
 
 points.txt
 
+# Case study results and generated outputs
 data_cleaning/outputs/
 data_cleaning/outputs_csv/
