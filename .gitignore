@@ -12,3 +12,5 @@ points.txt
 # Case study results and generated outputs
 data_cleaning/outputs/
 data_cleaning/outputs_csv/
+model_refinement/ml_model_outputs/
+model_refinement/model_refinement_outputs/
