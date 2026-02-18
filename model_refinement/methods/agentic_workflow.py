@@ -27,19 +27,19 @@ class WorkflowState(TypedDict, total=False):
     refined_params: Dict[str, Any]
 
 
-MAX_TOOL_CALLS = 3
+MAX_TOOL_CALLS = 6
 PARAM_KEYS = [
     "dataset_path", "n_rows", "test_size", "random_state", "metrics",
     "n_estimators", "max_depth", "learning_rate", "min_samples_leaf",
     "min_samples_split", "subsample", "max_features",
 ]
 
-ANALYZER_SYSTEM = """You are a failure analyzer for a gradient-boosting income-prediction model. You receive the user's problem description and the current training run (config + metrics). You may optionally call a tool to train the model with chosen params and get back metrics and feature importances.
+ANALYZER_SYSTEM = """You are the analyzer in an AgenticWorkflow whose goal is to find the best possible test accuracy by experimenting. You have a tool that trains the model with given params and returns test accuracy, F1, and feature importances. Your job is to try different hyperparameter combinations (vary n_estimators, max_depth, learning_rate, min_samples_leaf, min_samples_split, subsample, max_features) across multiple tool calls so the refiner can pick the config that actually achieved the highest test accuracy—do not settle for one or two similar runs; explore meaningfully different combos (e.g. deeper vs shallower, more vs fewer trees, different learning rates). Use large n_rows (at least 5000 or null) so results reflect generalization. When you have enough experimental variety, set decision to "no_tool" and in diagnosis list each run's params and its test accuracy and F1 so the refiner can choose the best.
 
 Output a JSON object with:
 - "decision": "use_tool" or "no_tool"
-- "diagnosis": (required if decision is "no_tool", or after any tool calls) short diagnosis for the next step. If you have already run the tool 1+ times, summarize what the tool results show so the refiner can decide final params.
-- "tool_params": (required only if decision is "use_tool") a dict with keys: dataset_path, n_rows, test_size, random_state, metrics, n_estimators, max_depth, learning_rate, min_samples_leaf, min_samples_split, subsample, max_features. Use the same dataset_path and test_size as in the training log; you may set n_rows (int or null) and model params to run a quick experiment.
+- "diagnosis": (required if "no_tool" or after tool calls) if you ran the tool, include every run's test accuracy, test F1, and key params (n_estimators, max_depth, learning_rate, n_rows) so the refiner can pick the best.
+- "tool_params": (required only if "use_tool") full dict: dataset_path, n_rows, test_size, random_state, metrics, n_estimators, max_depth, learning_rate, min_samples_leaf, min_samples_split, subsample, max_features. Use same dataset_path and test_size as training log; use large n_rows.
 
 Reply with only the JSON object, no markdown."""
 
@@ -52,7 +52,7 @@ Current training run:
 
 Output JSON (decision, diagnosis if not calling tool or to summarize after tool runs, tool_params if decision is use_tool):"""
 
-REFINER_SYSTEM = """You are a model refinement assistant. Given the user's problem, the current training log, and the analyzer's diagnosis (and any tool results summarized there), output a single JSON object with the final refined parameters. Use these keys: dataset_path, n_rows, test_size, random_state, metrics, n_estimators, max_depth, learning_rate, min_samples_leaf, min_samples_split, subsample, max_features. Reply with only the JSON object, no markdown."""
+REFINER_SYSTEM = """You are the refiner in an AgenticWorkflow. The analyzer ran multiple tool experiments with different hyperparameter combos to find the best test accuracy. Your only job: output the exact config that achieved the highest test accuracy in those tool runs (or a minimal tweak if you see a clear improvement). Do not fall back to generic "good" params—your output must be driven by the experimental results in the diagnosis. If the diagnosis lists several runs with test accuracy/F1, pick the run with the best test accuracy (or best F1 if accuracy is tied) and output that run's params. Use these keys: dataset_path, n_rows, test_size, random_state, metrics, n_estimators, max_depth, learning_rate, min_samples_leaf, min_samples_split, subsample, max_features. Reply with only the JSON object, no markdown."""
 
 REFINER_USER = """User problem:
 {user_input}
