@@ -40,7 +40,7 @@ We evaluate data cleaning as the first stage of a DS pipeline. We compare five m
 | Rule-based | ~44% | 27 | — | ~0.02 |
 | LLM only | ~96% | 2 | tokens × α | ~80 |
 | LLM + human | 100% | 0 | tokens × α + 600 × β | ~85 |
-| LLM + LLM (reviewer) | ~94% | few | (first + second LLM) tokens × α | ~270 |
+| LLM + LLM (reviewer) | ~94% | 3 | (first + second LLM) tokens × α | ~200 |
 
 - **LLM+LLM:** First LLM cleans; second LLM reviews each row (OK or corrected). Confidence = first LLM's only; no human. Report logs reviewer modifications.
 - **Rule-based cost:** If we model the rule-based method as an agent, the ~0.02s time would convert to a cost (local computation on own resources). Modeling that as an agent is not the focus of our paper.
