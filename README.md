@@ -97,6 +97,24 @@ We run a downstream ML task (binary income prediction) to show how optimizing th
 
 ---
 
+## 6. Missingness disambiguation (R5W4)
+
+We run a focused missing-value experiment where `?` can mean either natural missingness (keep as missing) or injected error (impute).
+
+- **Data generation:** We build two groups from Adult: (1) rows already containing `?` in key columns (`workclass`, `occupation`, `native-country`) and (2) rows without missingness where we inject `?` into one key column. We save noisy, correct, and cell-level metadata (`row_ix`, `col`, `group`, `ground_truth`).
+- **Raw:** leaves all `?` unchanged.
+- **Rule-based:** simple deterministic policy:
+  1) count how many key columns are missing in the row (`workclass`, `occupation`, `native-country`);
+  2) if only one key column is missing, treat it as error-induced and fill with that column's most frequent valid category (mode);
+  3) if two or more key columns are missing, treat as likely natural/ambiguous missingness and keep `?`.
+- **LLM-Cleaner:** one LLM pass that decides per `?` whether to preserve or impute from row context.
+- **LLM + human (few-shot):** same LLM flow, guided by expert few-shot examples that encode the missingness policy.
+- **LLM + ReviewerLLM:** first LLM cleans, then a reviewer LLM checks and revises uncertain disambiguation decisions.
+
+Outputs: `final_results/Data_Cleaning_Missingness_Error_vs_Legit/TABLE_missingness_quality_error_vs_legit.csv` and `final_results/Data_Cleaning_Missingness_Error_vs_Legit/missingness_quality_distinguishing_bar.png`.
+
+---
+
 # Model Refinement Case Study — Report
 
 We evaluate model refinement as a downstream pipeline stage. We compare Baseline (intentionally bad hyperparameters), SingleLLM (one-shot refinement), and our AgenticWorkflow (Explorer + Refiner) on test accuracy, F1, and API cost. **Methods:** SingleLLM proposes refined params in one call; AgenticWorkflow uses a tool-equipped Explorer that runs mini-training experiments and a Refiner that selects the best config from those results. **Key takeaway:** AgenticWorkflow outperforms SingleLLM because the Explorer iteratively explores parameter combinations and uses results to decide what to try next, giving the Refiner empirical evidence to choose the best params.
