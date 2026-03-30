@@ -43,6 +43,29 @@ def _prepare_xy(df: pd.DataFrame) -> Tuple[pd.DataFrame, pd.Series]:
     return X, y
 
 
+def load_adult_train_test(
+    dataset_path: str = "data/adult.csv",
+    n_rows: Optional[int] = None,
+    test_size: float = 0.2,
+    random_state: int = 42,
+) -> Tuple[pd.DataFrame, pd.DataFrame, pd.Series, pd.Series]:
+    """
+    Load Adult-style CSV, apply the same preprocessing as TrainableModel, and
+    return (X_train, X_test, y_train, y_test). Used by AutoML baselines that
+    are not GradientBoosting-specific.
+    """
+    p = Path(dataset_path)
+    if not p.is_absolute():
+        p = ROOT / p
+    if not p.exists():
+        raise FileNotFoundError(f"Dataset not found: {p}")
+    df = pd.read_csv(p)
+    if n_rows is not None:
+        df = df.head(int(n_rows))
+    X, y = _prepare_xy(df)
+    return train_test_split(X, y, test_size=test_size, random_state=random_state)
+
+
 class TrainableModel:
     """
     ML model (Gradient Boosting) parameterized by a full config: dataset path,

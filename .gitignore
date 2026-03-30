@@ -1,6 +1,7 @@
 # Data files
 data/
 venv
+.venv_automl
 
 # Python cache
 __pycache__/
@@ -14,3 +15,5 @@ data_cleaning/outputs/
 data_cleaning/outputs_csv/
 model_refinement/ml_model_outputs/
 model_refinement/model_refinement_outputs/
+utility_propagation/outputs
+final_results/

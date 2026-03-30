@@ -1,0 +1,15 @@
+# Auto-sklearn baseline for model refinement (Section 5.2).
+# Use a dedicated venv: the pins below differ from the main repo's scikit-learn line.
+#
+#   python3 -m venv .venv_automl
+#   source .venv_automl/bin/activate   # or .venv_automl\Scripts\activate on Windows
+#   pip install -U pip
+#   pip install -r model_refinement/requirements_automl.txt
+#
+# macOS: if building pyrfr fails, install SWIG: brew install swig
+# auto-sklearn 0.15 still expects pkg_resources from setuptools<81:
+setuptools>=69,<81
+numpy==1.23.5
+scikit-learn==0.24.2
+auto-sklearn==0.15.0
+pandas>=1.3.0
