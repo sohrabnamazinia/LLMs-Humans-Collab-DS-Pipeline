@@ -146,9 +146,11 @@ def main() -> None:
         {
             "font.family": "serif",
             "font.serif": ["Times New Roman", "Times", "DejaVu Serif"],
-            "font.size": 9,
-            "axes.labelsize": 10,
-            "axes.titlesize": 10.5,
+            "font.size": 10,
+            "axes.labelsize": 11.5,
+            "axes.titlesize": 12,
+            "xtick.labelsize": 10,
+            "ytick.labelsize": 10,
             "axes.linewidth": 0.8,
             "axes.spines.top": False,
             "axes.spines.right": False,
@@ -191,7 +193,7 @@ def main() -> None:
     ax.axhline(0.0, color="#999", linewidth=0.8, linestyle="--", zorder=0)
     ax.grid(True, alpha=0.35, linestyle="--", zorder=0)
     ax.set_axisbelow(True)
-    ax.legend(loc="best", fontsize=8, frameon=True)
+    ax.legend(loc="best", fontsize=9, frameon=True)
     fig.tight_layout()
     png_path = OUT_DIR / "utility_quality_cost_tradeoff.png"
     fig.savefig(png_path, facecolor="white", edgecolor="none")

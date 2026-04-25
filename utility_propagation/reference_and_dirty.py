@@ -1,24 +1,29 @@
 """Build reference (pseudo-ground-truth) train pool and a dirty version for cleaning experiments."""
 
-from typing import Tuple
+from __future__ import annotations
+
+from typing import TYPE_CHECKING, Tuple
 
 import numpy as np
 import pandas as pd
 from sklearn.model_selection import train_test_split
 
-from .constants import (
-    ADULT_PATH,
-    CAT_ERROR_COLS,
-    NUMERIC_COLS,
-    RANDOM_STATE,
-    TARGET_COL,
-    TEST_SIZE,
-)
+from .constants import RANDOM_STATE, TEST_SIZE
+
+if TYPE_CHECKING:
+    from .dataset_profiles import PropagationDataset
+
+
+def load_tabular_csv(profile: "PropagationDataset") -> pd.DataFrame:
+    df = pd.read_csv(profile.csv_path)
+    return df.drop(columns=list(profile.drop_cols), errors="ignore")
 
 
 def load_adult() -> pd.DataFrame:
-    df = pd.read_csv(ADULT_PATH)
-    return df
+    """Backward-compatible loader for Adult only."""
+    from .dataset_profiles import ADULT_PROFILE
+
+    return load_tabular_csv(ADULT_PROFILE)
 
 
 def _fill_sentinels_with_mode(df: pd.DataFrame, cat_cols: list) -> pd.DataFrame:
@@ -35,18 +40,26 @@ def _fill_sentinels_with_mode(df: pd.DataFrame, cat_cols: list) -> pd.DataFrame:
     return out
 
 
+def _y_from_df(df: pd.DataFrame, profile: "PropagationDataset") -> pd.Series:
+    col = df[profile.target_col]
+    if profile.target_encoding == "adult_income":
+        return (col.astype(str).str.strip() == ">50K").astype(int)
+    return col.astype(int).clip(0, 1)
+
+
 def make_reference_and_test(
     df: pd.DataFrame,
+    profile: "PropagationDataset",
 ) -> Tuple[pd.DataFrame, pd.DataFrame, pd.Series, pd.Series]:
-    """Stratified split; reference train = train with ? imputed by column mode (deterministic baseline truth)."""
-    y = (df[TARGET_COL].astype(str).str.strip() == ">50K").astype(int)
-    Xmeta = df.drop(columns=[TARGET_COL])
+    """Stratified split; reference train = train with ? imputed by column mode on cat_error columns."""
+    y = _y_from_df(df, profile)
+    Xmeta = df.drop(columns=[profile.target_col])
     X_tr, X_te, y_tr, y_te = train_test_split(
         Xmeta, y, test_size=TEST_SIZE, random_state=RANDOM_STATE, stratify=y
     )
-    ref_tr = pd.concat([X_tr, y_tr.rename(TARGET_COL)], axis=1)
-    ref_te = pd.concat([X_te, y_te.rename(TARGET_COL)], axis=1)
-    cat_cols = [c for c in CAT_ERROR_COLS if c in ref_tr.columns]
+    ref_tr = pd.concat([X_tr, y_tr.rename(profile.target_col)], axis=1)
+    ref_te = pd.concat([X_te, y_te.rename(profile.target_col)], axis=1)
+    cat_cols = [c for c in profile.cat_error_cols if c in ref_tr.columns]
     ref_tr_clean = _fill_sentinels_with_mode(ref_tr, cat_cols)
     ref_te_clean = _fill_sentinels_with_mode(ref_te, cat_cols)
     return ref_tr_clean, ref_te_clean, y_tr, y_te
@@ -54,19 +67,20 @@ def make_reference_and_test(
 
 def corrupt_categorical(
     ref_df: pd.DataFrame,
+    cat_cols: list,
     frac: float = 0.22,
     rng: np.random.Generator = None,
 ) -> Tuple[pd.DataFrame, np.ndarray, list]:
     """
-    Copy reference; randomly set frac of (workclass, occupation, native-country) cells to '?'.
+    Copy reference; randomly set frac of cells in cat_cols to '?'.
     Returns dirty df, mask [n_rows, n_cat] aligned with iloc order, and cat_cols list.
     """
     rng = rng or np.random.default_rng(RANDOM_STATE)
     dirty = ref_df.copy()
-    cat_cols = [c for c in CAT_ERROR_COLS if c in dirty.columns]
+    present = [c for c in cat_cols if c in dirty.columns]
     n = len(dirty)
-    mask = np.zeros((n, len(cat_cols)), dtype=bool)
-    for j, c in enumerate(cat_cols):
+    mask = np.zeros((n, len(present)), dtype=bool)
+    for j, c in enumerate(present):
         idx = np.arange(n)
         rng.shuffle(idx)
         k = max(1, int(n * frac))
@@ -74,7 +88,7 @@ def corrupt_categorical(
         mask[chosen, j] = True
         ix = dirty.index[chosen]
         dirty.loc[ix, c] = "?"
-    return dirty, mask, cat_cols
+    return dirty, mask, present
 
 
 def cleaning_quality_vs_reference(

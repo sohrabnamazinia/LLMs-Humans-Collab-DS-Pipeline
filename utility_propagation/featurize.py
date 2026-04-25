@@ -1,42 +1,46 @@
 """Feature subsets (stage 3) and exploration signal (mean |corr| with y)."""
 
-from typing import List, Optional, Tuple
+from __future__ import annotations
+
+from typing import TYPE_CHECKING, List, Optional, Tuple
 
 import numpy as np
 import pandas as pd
 
-from .constants import NUMERIC_COLS, TARGET_COL
+from .dataset_profiles import ADULT_PROFILE
 
-# Feature group definitions (column names must exist in Adult)
-FEATURE_GROUPS = {
-    "numeric_only": list(NUMERIC_COLS),
-    "demographics": NUMERIC_COLS + [
-        "education", "marital-status", "race", "sex", "relationship",
-    ],
-    "wide": None,  # all except target
-}
+if TYPE_CHECKING:
+    from .dataset_profiles import PropagationDataset
+
+# Backward-compatible Adult group names (used if code still imports FEATURE_GROUPS)
+FEATURE_GROUPS = ADULT_PROFILE.feature_groups
+
+
+def _y_from_df(df: pd.DataFrame, profile: "PropagationDataset") -> pd.Series:
+    col = df[profile.target_col]
+    if profile.target_encoding == "adult_income":
+        return (col.astype(str).str.strip() == ">50K").astype(int)
+    return col.astype(int).clip(0, 1)
 
 
 def prepare_xy(
     df: pd.DataFrame,
     group: str,
+    profile: Optional["PropagationDataset"] = None,
 ) -> Tuple[pd.DataFrame, pd.Series]:
     """Build X (float), y (int) from cleaned dataframe."""
-    if TARGET_COL not in df.columns:
-        raise ValueError("missing income column")
-    col = df[TARGET_COL]
-    # Reference pipeline uses 0/1 ints; raw Adult CSV uses ">50K" / "<=50K".
-    if pd.api.types.is_numeric_dtype(col):
-        y = col.astype(int).clip(0, 1)
-    else:
-        y = (col.astype(str).str.strip() == ">50K").astype(int)
-    cols = FEATURE_GROUPS[group]
+    profile = profile or ADULT_PROFILE
+    if profile.target_col not in df.columns:
+        raise ValueError(f"missing target column {profile.target_col!r}")
+    y = _y_from_df(df, profile)
+    groups = profile.feature_groups
+    cols = groups[group]
     if cols is None:
-        X_df = df.drop(columns=[TARGET_COL])
+        X_df = df.drop(columns=[profile.target_col])
     else:
         cols = [c for c in cols if c in df.columns]
         X_df = df[cols].copy()
-    numeric = [c for c in NUMERIC_COLS if c in X_df.columns]
+    numeric = [c for c in profile.numeric_cols if c in X_df.columns]
     cat_cols = [c for c in X_df.columns if c not in numeric]
     X_df = X_df.astype(str)
     X = pd.get_dummies(X_df, columns=cat_cols, drop_first=False, dtype=float)
@@ -49,21 +53,19 @@ def prepare_xy(
 def prepare_xy_columns(
     df: pd.DataFrame,
     columns: Optional[List[str]],
+    profile: Optional["PropagationDataset"] = None,
 ) -> Tuple[pd.DataFrame, pd.Series]:
     """Like prepare_xy but with an explicit column list; None = all columns except target (wide)."""
-    if TARGET_COL not in df.columns:
-        raise ValueError("missing income column")
-    col = df[TARGET_COL]
-    if pd.api.types.is_numeric_dtype(col):
-        y = col.astype(int).clip(0, 1)
-    else:
-        y = (col.astype(str).str.strip() == ">50K").astype(int)
+    profile = profile or ADULT_PROFILE
+    if profile.target_col not in df.columns:
+        raise ValueError(f"missing target column {profile.target_col!r}")
+    y = _y_from_df(df, profile)
     if columns is None:
-        X_df = df.drop(columns=[TARGET_COL])
+        X_df = df.drop(columns=[profile.target_col])
     else:
         cols = [c for c in columns if c in df.columns]
         X_df = df[cols].copy()
-    numeric = [c for c in NUMERIC_COLS if c in X_df.columns]
+    numeric = [c for c in profile.numeric_cols if c in X_df.columns]
     cat_cols = [c for c in X_df.columns if c not in numeric]
     X_df = X_df.astype(str)
     X = pd.get_dummies(X_df, columns=cat_cols, drop_first=False, dtype=float)

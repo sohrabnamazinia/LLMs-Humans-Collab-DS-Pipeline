@@ -166,6 +166,22 @@ def _plot_bar(df: pd.DataFrame, out_path: Path) -> None:
     methods = plot_df["Method"].tolist()
     x = range(len(methods))
 
+    # Larger than default so the figure reads clearly at publication scale (matches serif style of other final_results charts).
+    _fs_title = 16
+    _fs_axis = 15
+    _fs_tick = 13
+    _fs_legend = 12
+    plt.rcParams.update(
+        {
+            "font.family": "serif",
+            "font.serif": ["Times New Roman", "Times", "DejaVu Serif"],
+            "font.size": _fs_tick,
+            "axes.titlesize": _fs_title,
+            "axes.labelsize": _fs_axis,
+            "xtick.labelsize": _fs_tick,
+            "ytick.labelsize": _fs_tick,
+        }
+    )
     fig, ax = plt.subplots(figsize=(10, 4.8))
     w = 0.38
     # Distinguishing: hatch + edge to make the bars visibly different in B/W.
@@ -190,17 +206,19 @@ def _plot_bar(df: pd.DataFrame, out_path: Path) -> None:
     )
 
     ax.set_xticks(list(x))
-    ax.set_xticklabels(methods, rotation=20, ha="right")
+    ax.set_xticklabels(methods, rotation=20, ha="right", fontsize=_fs_tick)
     ax.set_ylim(0, 1.05)
-    ax.set_xlabel("Methods")
-    ax.set_ylabel("Normalized Quality")
-    ax.set_title("Missing-value handling: distinguishing vs imputation quality")
-    ax.legend(loc="upper right")
+    ax.set_xlabel("Methods", fontsize=_fs_axis)
+    ax.set_ylabel("Normalized Quality", fontsize=_fs_axis)
+    ax.set_title("Missing-value handling: distinguishing and imputation quality", fontsize=_fs_title)
+    ax.tick_params(axis="both", which="major", labelsize=_fs_tick)
+    ax.legend(loc="upper right", fontsize=_fs_legend)
 
     fig.tight_layout()
     out_path.parent.mkdir(parents=True, exist_ok=True)
     fig.savefig(out_path, dpi=160)
     plt.close(fig)
+    plt.rcdefaults()
 
 
 def _maybe_build_dataset(run_build: bool) -> None:
