@@ -95,7 +95,7 @@ def main(
     correct_df = pd.read_csv(correct_path).head(len(raw_df))
     print(f"Loaded {len(raw_df)} rows from {data_path}")
 
-    # Inject vague values in ~half the rows so we get some confidence < 90
+    # Inject vague values in a subset of rows so the run includes below-threshold confidence scores.
     random.seed(42)
     n_inject = min(4, len(raw_df))
     inject_inds = random.sample(range(len(raw_df)), n_inject)
@@ -103,7 +103,10 @@ def main(
         for col in ["workclass", "occupation", "native-country"]:
             if col in raw_df.columns:
                 raw_df.iloc[idx, raw_df.columns.get_loc(col)] = "Unclear"
-    print(f"Injected 'Unclear' in rows {inject_inds} (workclass, occupation, native-country) to trigger below-confidence.\n")
+    print(
+        f"Injected 'Unclear' in rows {inject_inds} (workclass, occupation, native-country) "
+        f"for below-threshold confidence analysis.\n"
+    )
 
     data_columns = [c for c in raw_df.columns if c not in (EXPLANATION_COL, CONFIDENCE_COL)]
 

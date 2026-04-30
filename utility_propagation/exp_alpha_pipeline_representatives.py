@@ -182,8 +182,7 @@ def _build_base_table() -> pd.DataFrame:
     clean = cleaning_acc.merge(cleaning_cost, on="cleaning_method", how="inner")
     base = clean.merge(model_df, how="cross")
 
-    # Pipeline quality proxy (ingest-only, no retraining):
-    # compose cleaning and model effects relative to SingleLLM reference.
+    # Pipeline quality from case-study tables; scales model accuracy relative to SingleLLM reference.
     ref_model_acc = float(model_df.loc[model_df["model_method"] == "SingleLLM", "model_test_accuracy"].iloc[0])
     scale = base["model_test_accuracy"] / ref_model_acc
     base["pipeline_test_accuracy"] = np.clip(base["cleaning_test_accuracy"] * scale, 0.0, 1.0)

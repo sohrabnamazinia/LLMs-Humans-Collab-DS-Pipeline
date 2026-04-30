@@ -40,7 +40,7 @@ SECONDARY_PICK_WITH_NAIVE = [
 
 STYLE = {
     "P02_Rawnocleaning_SingleLLM": {"color": "#1f77b4", "marker": "o"},
-    "P04_Rulebased_NaiveBaseline": {"color": "#17becf", "marker": "P"},
+    "P04_Rulebased_NaiveBaseline": {"color": "#1f77b4", "marker": "P"},
     "P05_Rulebased_SingleLLM": {"color": "#2ca02c", "marker": "s"},
     "P08_LLMonly_SingleLLM": {"color": "#ff7f0e", "marker": "^"},
     "P11_LLMplushumanfewshot_SingleLLM": {"color": "#9467bd", "marker": "D"},

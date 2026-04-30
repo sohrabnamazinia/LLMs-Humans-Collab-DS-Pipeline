@@ -35,8 +35,7 @@ CAT_COLUMNS = [
 ]
 NUM_COLUMNS = ["age", "fnlwgt", "educational-num", "capital-gain", "capital-loss", "hours-per-week"]
 
-# Categorical typo patterns: (original_fragment, typo_variant)
-# Applied randomly so LLM > rules
+# Categorical typo patterns: (original_fragment, typo_variant). A random subset is applied per row.
 TYPO_MAP = [
     ("Private", "private "),
     ("Private", "PRIVATE"),
@@ -68,9 +67,9 @@ INVALID_CATEGORIES = [
     ("native-country", "TBD"),
 ]
 
-# Sentinel strings for "missing" in categorical columns. Rule-based only replaces "?"
-# and fills NaN with mode — it does NOT replace these, so they stay as errors and
-# rule-based quality stays below LLM. LLM can infer correct values.
+# Sentinel strings for "missing" in categorical columns. The rule-based cleaner replaces "?"
+# and mode-fills NaN; it does not map these extended sentinels, so they remain as errors unless
+# a stronger cleaner resolves them.
 CAT_MISSING_SENTINELS = [
     "N/A", "missing", "??", "Unknown", "null", "Invalid", "NA", "—", "???",
 ]

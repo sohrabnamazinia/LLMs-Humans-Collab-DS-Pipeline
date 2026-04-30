@@ -1,6 +1,6 @@
 #!/usr/bin/env python3
 """
-Unified data-cleaning utility vs tradeoff weight (responds to reviewer: quality + cost on same axis).
+Unified data-cleaning utility vs tradeoff weight: quality and cost on the same axis.
 
 Cost model (linear, all normalized to [0, 1]):
   T̃ = min(1, T_tokens / T_ref),  H̃ = H_human / H_max
@@ -42,7 +42,7 @@ REPO_ROOT = Path(__file__).resolve().parent.parent
 OUT_DIR = REPO_ROOT / "final_results" / "Data_Cleaning_Utility_Quality_Cost"
 OUT_DIR.mkdir(parents=True, exist_ok=True)
 
-# Reference scale for token burden (same units as T); pulls batched cleaning closer to reviewer on T̃.
+# Reference scale for token burden (same units as T); calibrates normalized token cost across methods.
 T_REF = 400_000
 H_MAX = 980  # human units for LLM+HITL (paper table)
 W_TOKEN = 0.5
