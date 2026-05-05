@@ -1,12 +1,14 @@
 """
-Plot cherry-picked alpha utility pipelines (color + marker shape).
+Plot representative alpha-utility pipelines (color + marker shape).
 
 Run:
-  python -m utility_propagation.plot_cherrypicked_alpha_pipelines
+  python -m utility_propagation.plot_representative_alpha_pipelines
 
 Outputs:
-  utility_propagation/outputs/TABLE_alpha_pipeline_curves_cherrypicked5_<stamp>.csv
-  utility_propagation/outputs/FIG_alpha_pipeline_curves_cherrypicked5_<stamp>.png
+  utility_propagation/outputs/TABLE_alpha_pipeline_curves_representative5_<stamp>.csv
+  utility_propagation/outputs/FIG_alpha_pipeline_curves_representative5_<stamp>.png
+  utility_propagation/outputs/TABLE_alpha_pipeline_curves_representative5_includes_naive_<stamp>.csv
+  utility_propagation/outputs/FIG_alpha_pipeline_curves_representative5_includes_naive_<stamp>.png
 """
 
 from __future__ import annotations
@@ -21,7 +23,7 @@ import pandas as pd
 ROOT = Path(__file__).resolve().parents[1]
 OUT_DIR = ROOT / "utility_propagation" / "outputs"
 
-DEFAULT_PICK = [
+REPRESENTATIVE_PRIMARY_PICK = [
     "P02_Rawnocleaning_SingleLLM",
     "P05_Rulebased_SingleLLM",
     "P08_LLMonly_SingleLLM",
@@ -29,8 +31,8 @@ DEFAULT_PICK = [
     "P12_LLMplushumanfewshot_AgenticWorkflow",
 ]
 
-# Secondary set requested: include one naive-baseline representative.
-SECONDARY_PICK_WITH_NAIVE = [
+# Alternate set: include one naive-baseline pipeline for comparison.
+REPRESENTATIVE_PICK_INCLUDES_NAIVE = [
     "P04_Rulebased_NaiveBaseline",
     "P05_Rulebased_SingleLLM",
     "P08_LLMonly_SingleLLM",
@@ -49,9 +51,17 @@ STYLE = {
 
 
 def _latest_curves_csv() -> Path:
-    cands = sorted(OUT_DIR.glob("TABLE_alpha_pipeline_curves_*.csv"), key=lambda p: p.stat().st_mtime)
+    cands = [
+        p
+        for p in OUT_DIR.glob("TABLE_alpha_pipeline_curves_*.csv")
+        if "cherrypicked" not in p.name.lower() and "representative5" not in p.name
+    ]
+    cands = sorted(cands, key=lambda p: p.stat().st_mtime)
     if not cands:
-        raise FileNotFoundError(f"No alpha pipeline curves CSV found in {OUT_DIR}")
+        raise FileNotFoundError(
+            f"No full alpha-pipeline curves CSV in {OUT_DIR} "
+            f"(expected TABLE_alpha_pipeline_curves_<stamp>.csv from exp_alpha_pipeline_representatives)"
+        )
     return cands[-1]
 
 
@@ -97,24 +107,24 @@ def main() -> None:
     df = pd.read_csv(src)
     stamp = datetime.now().strftime("%Y%m%d_%H%M%S")
 
-    out_csv_primary = OUT_DIR / f"TABLE_alpha_pipeline_curves_cherrypicked5_{stamp}.csv"
-    out_png_primary = OUT_DIR / f"FIG_alpha_pipeline_curves_cherrypicked5_{stamp}.png"
+    out_csv_primary = OUT_DIR / f"TABLE_alpha_pipeline_curves_representative5_{stamp}.csv"
+    out_png_primary = OUT_DIR / f"FIG_alpha_pipeline_curves_representative5_{stamp}.png"
     _plot_one_set(
         df=df,
-        pick=DEFAULT_PICK,
+        pick=REPRESENTATIVE_PRIMARY_PICK,
         out_csv=out_csv_primary,
         out_png=out_png_primary,
-        title="Cherry-Picked Pipeline Utility Curves",
+        title="Comparison of Pipelines Utility",
     )
 
-    out_csv_secondary = OUT_DIR / f"TABLE_alpha_pipeline_curves_cherrypicked5_with_naive_{stamp}.csv"
-    out_png_secondary = OUT_DIR / f"FIG_alpha_pipeline_curves_cherrypicked5_with_naive_{stamp}.png"
+    out_csv_secondary = OUT_DIR / f"TABLE_alpha_pipeline_curves_representative5_includes_naive_{stamp}.csv"
+    out_png_secondary = OUT_DIR / f"FIG_alpha_pipeline_curves_representative5_includes_naive_{stamp}.png"
     _plot_one_set(
         df=df,
-        pick=SECONDARY_PICK_WITH_NAIVE,
+        pick=REPRESENTATIVE_PICK_INCLUDES_NAIVE,
         out_csv=out_csv_secondary,
         out_png=out_png_secondary,
-        title="Cherry-Picked Pipeline Utility Curves (with NaiveBaseline)",
+        title="Comparison of Pipelines Utility",
     )
 
     print(f"Source: {src}")
