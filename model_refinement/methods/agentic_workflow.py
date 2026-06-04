@@ -82,9 +82,9 @@ def _train_tool(tool_params: Dict[str, Any]) -> Dict[str, Any]:
 class AgenticWorkflow:
     """LangGraph: analyzer (optional tool, max 3 calls) -> refiner -> refined params."""
 
-    def __init__(self, model_name: str = "gpt-4o-mini", max_tool_calls: int = MAX_TOOL_CALLS):
+    def __init__(self, model_name: str = "gpt-4o-mini", max_tool_calls: int = MAX_TOOL_CALLS, temperature: float = 0):
         self.max_tool_calls = max_tool_calls
-        self.llm = ChatOpenAI(model=model_name, temperature=0)
+        self.llm = ChatOpenAI(model=model_name, temperature=temperature)
         self.analyzer_prompt = ChatPromptTemplate.from_messages([
             ("system", ANALYZER_SYSTEM),
             ("human", ANALYZER_USER),

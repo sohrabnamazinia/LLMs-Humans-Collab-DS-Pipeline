@@ -33,8 +33,8 @@ Output refined params as a single JSON object:"""
 class SingleLLM:
     """One LLM call: user_input + training log CSV -> refined params dict."""
 
-    def __init__(self, model_name: str = "gpt-4o-mini"):
-        self.llm = ChatOpenAI(model=model_name, temperature=0)
+    def __init__(self, model_name: str = "gpt-4o-mini", temperature: float = 0):
+        self.llm = ChatOpenAI(model=model_name, temperature=temperature)
         self.prompt = ChatPromptTemplate.from_messages([
             ("system", SYSTEM),
             ("human", USER_TEMPLATE),
