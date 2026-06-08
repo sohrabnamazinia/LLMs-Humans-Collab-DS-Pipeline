@@ -19,3 +19,6 @@ utility_propagation/outputs
 final_results/
 utils/README_final_results_experiments.md
 utils/*.md
+
+# NL2SQL experiment outputs
+nl2sql/*.txt
